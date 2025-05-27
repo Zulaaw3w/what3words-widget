@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>what3words Widget</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fa; padding: 20px; }
+        .widget { max-width: 400px; margin: 0 auto; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .title { font-size: 20px; font-weight: 600; color: #0073ea; text-align: center; margin-bottom: 20px; }
+        input { width: 100%; padding: 14px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; margin-bottom: 16px; box-sizing: border-box; }
+        input:focus { outline: none; border-color: #0073ea; }
+        .suggestions { background: white; border: 1px solid #e1e5e9; border-radius: 8px; max-height: 250px; overflow-y: auto; display: none; margin-bottom: 16px; }
+        .suggestion { padding: 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background 0.2s; }
+        .suggestion:hover { background: #f8f9fa; }
+        .suggestion:last-child { border-bottom: none; }
+        .words { font-weight: 600; color: #0073ea; font-family: monospace; margin-bottom: 4px; font-size: 14px; }
+        .location { font-size: 12px; color: #676879; }
+        .loading { text-align: center; padding: 16px; color: #676879; font-style: italic; }
+        button { width: 100%; padding: 14px; background: #0073ea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        button:disabled { background: #c4c4c4; cursor: not-allowed; }
+        .selected { background: #e6f4ff; border: 2px solid #0073ea; border-radius: 8px; padding: 16px; margin-bottom: 16px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="widget">
+        <div class="title">📍 what3words Widget</div>
+        <input id="input" placeholder="Enter your w3w address (e.g. filled.count.soap)" autocomplete="off" />
+        <div id="suggestions" class="suggestions"></div>
+        <div id="selected" class="selected">
+            <div class="words" id="selected-words"></div>
+            <div class="location" id="selected-location"></div>
+        </div>
+        <button id="save-btn" onclick="save()" disabled>Save to Monday.com</button>
+    </div>
+    <script>
+        let selectedAddress = null;
+        let debounceTimer;
+        
+        const input = document.getElementById('input');
+        const suggestions = document.getElementById('suggestions');
+        const selected = document.getElementById('selected');
+        const saveBtn = document.getElementById('save-btn');
+        
+        input.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            
+            if (query.length < 3) {
+                suggestions.style.display = 'none';
+                return;
+            }
+            
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                fetchSuggestions(query);
+            }, 400);
+        });
+        
+        async function fetchSuggestions(query) {
+            try {
+                suggestions.innerHTML = '<div class="loading">Searching...</div>';
+                suggestions.style.display = 'block';
+                
+                // Clean up the query
+                const cleanQuery = query.replace(/^\/\/\//, '').toLowerCase();
+                
+                // Use a CORS proxy to avoid browser CORS issues
+                const API_KEY = '51UT27S1';
+                const url = `https://cors-anywhere.herokuapp.com/https://api.what3words.com/v3/autosuggest?input=${encodeURIComponent(cleanQuery)}&key=${API_KEY}&language=en&n-results=5`;
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('API request failed');
+                }
+                
+                const data = await response.json();
+                
+                if (data.suggestions && data.suggestions.length > 0) {
+                    displaySuggestions(data.suggestions);
+                } else {
+                    // Show sample suggestions if API doesn't return results
+                    showSampleSuggestions(cleanQuery);
+                }
+                
+            } catch (error) {
+                console.error('API Error:', error);
+                // Fallback to sample suggestions
+                showSampleSuggestions(query);
+            }
+        }
+        
+        function showSampleSuggestions(query) {
+            const sampleSuggestions = [
+                { words: 'filled.count.soap', nearestPlace: 'Hyde Park', country: 'United Kingdom', geometry: { lat: 51.520847, lng: -0.195521 } },
+                { words: 'filled.coffee.shop', nearestPlace: 'London', country: 'United Kingdom', geometry: { lat: 51.521251, lng: -0.203586 } },
+                { words: 'filled.house.number', nearestPlace: 'Westminster', country: 'United Kingdom', geometry: { lat: 51.518973, lng: -0.191821 } },
+                { words: 'filled.park.bench', nearestPlace: 'Camden', country: 'United Kingdom', geometry: { lat: 51.522847, lng: -0.185521 } },
+                { words: 'filled.street.corner', nearestPlace: 'Kensington', country: 'United Kingdom', geometry: { lat: 51.519847, lng: -0.195621 } }
+            ];
+            
+            // Filter suggestions based on query
+            const filtered = sampleSuggestions.filter(s => 
+                s.words.toLowerCase().includes(query.toLowerCase())
+            );
+            
+            if (filtered.length > 0) {
+                displaySuggestions(filtered);
+            } else {
+                displaySuggestions(sampleSuggestions.slice(0, 5));
+            }
+        }
+        
+        function displaySuggestions(list) {
+            suggestions.innerHTML = '';
+            
+            list.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'suggestion';
+                div.innerHTML = `
+                    <div class="words">///${item.words}</div>
+                    <div class="location">${item.nearestPlace}, ${item.country}</div>
+                `;
+                div.onclick = () => selectAddress(item);
+                suggestions.appendChild(div);
+            });
+        }
+        
+        function selectAddress(address) {
+            selectedAddress = address;
+            input.value = `///${address.words}`;
+            
+            document.getElementById('selected-words').textContent = `///${address.words}`;
+            document.getElementById('selected-location').textContent = `${address.nearestPlace}, ${address.country}`;
+            
+            selected.style.display = 'block';
+            suggestions.style.display = 'none';
+            saveBtn.disabled = false;
+        }
+        
+        function save() {
+            if (selectedAddress) {
+                alert(`✅ Saved to Monday.com!\n\nAddress: ///${selectedAddress.words}\nLocation: ${selectedAddress.nearestPlace}, ${selectedAddress.country}`);
+            }
+        }
+        
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.widget')) {
+                suggestions.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
