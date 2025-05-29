@@ -181,21 +181,10 @@
                 suggestions.innerHTML = '<div class="loading">Loading suggestions...</div>';
                 suggestions.style.display = 'block';
                 
-                // Use the API key
                 const API_KEY = '51UT27S1';
-                
-                // Try direct API call first
-                let url = `https://api.what3words.com/v3/autosuggest?input=${encodeURIComponent(query)}&key=${API_KEY}&clip-to-country=US,GB,CA,AU,FR,DE,ES,IT,NL,SE,NO,DK,FI&language=en&n-results=5`;
-                
-                let response;
-                try {
-                    response = await fetch(url);
-                } catch (corsError) {
-                    // If CORS fails, try with a proxy
-                    console.log('Direct API failed, trying proxy...');
-                    url = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                    response = await fetch(url);
-                }
+                const response = await fetch(
+                    `https://api.what3words.com/v3/autosuggest?input=${encodeURIComponent(query)}&key=${API_KEY}&clip-to-country=US,GB,CA,AU,FR,DE,ES,IT,NL,SE,NO,DK,FI&language=en&n-results=5`
+                );
                 
                 if (!response.ok) {
                     throw new Error(`API request failed: ${response.status}`);
@@ -211,7 +200,7 @@
                 
             } catch (error) {
                 console.error('API Error:', error);
-                suggestions.innerHTML = '<div class="loading">Error loading suggestions. Please check your connection.</div>';
+                suggestions.innerHTML = '<div class="loading">Error loading suggestions. Please try again.</div>';
             }
         }
         
