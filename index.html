@@ -183,15 +183,15 @@
                 
                 const API_KEY = '51UT27S1';
                 
-                // Use JSONP approach to avoid CORS issues
-                const url = `https://api.what3words.com/v3/autosuggest?input=${encodeURIComponent(query)}&key=${API_KEY}&clip-to-country=US,GB,CA,AU,FR,DE,ES,IT,NL,SE,NO,DK,FI&language=en&n-results=5&format=json`;
+                // Use CORS proxy to fix API access
+                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+                const targetUrl = `https://api.what3words.com/v3/autosuggest?input=${encodeURIComponent(query)}&key=${API_KEY}&clip-to-country=US,GB,CA,AU,FR,DE,ES,IT,NL,SE,NO,DK,FI&language=en&n-results=5`;
                 
-                const response = await fetch(url, {
+                const response = await fetch(proxyUrl + targetUrl, {
                     method: 'GET',
                     headers: {
-                        'Accept': 'application/json',
-                    },
-                    mode: 'cors'
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
                 
                 if (!response.ok) {
@@ -208,13 +208,7 @@
                 
             } catch (error) {
                 console.error('API Error:', error);
-                // Fallback with sample suggestions for testing
-                const sampleSuggestions = [
-                    { words: 'filled.count.soap', nearestPlace: 'London', country: 'GB' },
-                    { words: 'index.home.raft', nearestPlace: 'Manchester', country: 'GB' },
-                    { words: 'query.test.demo', nearestPlace: 'Birmingham', country: 'GB' }
-                ];
-                displaySuggestions(sampleSuggestions);
+                suggestions.innerHTML = '<div class="loading">API temporarily unavailable. Please try again later.</div>';
             }
         }
         
